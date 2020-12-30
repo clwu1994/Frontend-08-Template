@@ -1,0 +1,226 @@
+<style>
+.container {
+  display: flex;
+}
+.cell {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+  display: inline-block;
+  border: 1px solid white;
+  vertical-align: middle;
+  line-height: 100px;
+  font-size: 50px;
+  text-align: center;
+  color: red;
+  cursor: pointer;
+}
+.action-panel {
+  margin-left: 10px;
+}
+</style>
+<div id="board"></div>
+
+<script>
+let pattern = [
+  [0, 0, 0],
+  [0, 0, 0],
+  [0, 0, 0]
+]
+// 2是X，1是O，0是空
+let color = 1;
+// 是否结束
+let finished = false;
+
+// 渲染棋盘
+function show () {
+  let board = document.getElementById("board");
+  // 清空棋盘
+  board.innerHTML = ""
+  // 重绘
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      let cell = document.createElement("div");
+      cell.classList.add("cell");
+      cell.innerText = pattern[i][j] === 2 ? "X" :
+        pattern[i][j] === 1 ? "O" : ""
+      // 为每个单元格绑定click事件
+      cell.addEventListener("click", () => useMove(i, j))
+      board.appendChild(cell);
+    }
+    board.appendChild(document.createElement("br"))
+  }
+}
+
+function wait(delay) {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, delay)
+  })
+}
+
+// 落子
+async function useMove(i, j) {
+  if (pattern[i][j] !== 0 || finished) {
+    // 证明有落子了
+    return
+  }
+  let oldColor = color
+  // 修改棋盘数据
+  pattern[i][j] = color
+  color = 3 - color
+  show()
+  await wait(100) 
+  // 系统提示是否胜利
+  if (!finished && willWin(pattern, oldColor)) {
+    console.log(oldColor === 2 ? "X will win" : "O will win")
+  }
+  if (finished = check(pattern, oldColor)) {
+    alert(oldColor === 2 ? "X is winner!" : "O is winner!")
+    return
+  }
+  computerMove();
+}
+
+// 落子
+async function computerMove() {
+  let choice = bestChoice(pattern, color)
+  if (choice.point) {
+    let oldColor = color
+    const [j, i] = choice.point
+    // 修改棋盘数据
+    pattern[i][j] = color
+    color = 3 - color
+    show()
+    await wait(100)
+    // 系统提示是否胜利
+    if (!finished && willWin(pattern, oldColor)) {
+      console.log(oldColor === 2 ? "X will win" : "O will win")
+    }
+    if (finished = check(pattern, oldColor)) {
+      alert(oldColor === 2 ? "X is winner!" : "O is winner!")
+      return
+    }
+  }
+}
+
+// 深拷贝数据
+function clone (pattern) {
+  return JSON.parse(JSON.stringify(pattern))
+}
+
+// 系统提示一方将胜利
+function willWin(pattern, color) {
+  for (i = 0; i < 3; i++) {
+    for (j = 0; j < 3; j++) {
+      // 如果有子落下跳过当前循环
+      if (pattern[i][j]) {
+        continue
+      }
+      let tem = clone(pattern)
+      tem[i][j] = color
+      if (check(tem, color)) {
+        return [j, i]
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * 编写人机对战的逻辑
+ * 第一层策略: 我要赢
+ * 第二层策略：别输
+ * 第三层策略...
+ * 棋谱
+ */
+function bestChoice(pattern, color) {
+  let p;
+  // 第一层策略: 我要赢
+  if (p = willWin(pattern, color)) {
+    return {
+      point: p,
+      result: 1 // 1:赢 -1输 0和
+    }
+  }
+  // 別输，当前走的策略和对方走的策略作比较，如果对方的策略比较差，倾向于走这一步
+  let result = -2;
+  let point = null;
+  outer: for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      // 跳过有值的
+      if (pattern[i][j]) {
+        continue;
+      }
+      let tem = clone(pattern)
+      tem[i][j] = color;
+      let r = bestChoice(tem, 3 - color).result;
+      if (-r > result) {
+        result = -r;
+        point = [j, i];
+      }
+      if (r === 1) {
+        break outer
+      }
+    }
+  }
+  return {
+    point: point,
+    result: point ? result : 0
+  }
+}
+
+// 判断胜负
+function check(pattern, color) {
+  // 三行
+  for (let i = 0; i < 3; i++) {
+    let win = true
+    for (let j = 0; j < 3; j++) {
+      if (pattern[i][j] !== color) {
+        win = false
+      }
+    }
+    if (win) {
+      return true
+    } 
+  }
+  // 三列
+  for (let i = 0; i < 3; i++) {
+    let win = true;
+    for (let j = 0; j < 3; j++) {
+      if (pattern[j][i] !== color) {
+        win = false
+      }
+    }
+    if (win) {
+      return true
+    }
+  }
+  // 从右上到左下斜线
+  {
+    let win = true
+    for (let j = 0; j < 3; j++) {
+      if (pattern[j][2 - j] !== color) {
+        win = false
+      }
+    }
+    if (win) {
+      return true
+    } 
+  }
+  // 从左上到右下斜线
+  {
+    let win = true
+    for (let j = 0; j < 3; j++) {
+      if (pattern[j][j] !== color) {
+        win = false
+      }
+    }
+    if (win) {
+      return true
+    }
+  }
+  return false
+}
+
+show()
+</script>
