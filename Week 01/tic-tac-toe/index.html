@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tic-tac-toe</title>
+    <style>
+      .container {
+        display: flex;
+      }
+      .cell {
+        width: 100px;
+        height: 100px;
+        background-color: #ced8ce;
+        display: inline-block;
+        border: 1px solid white;
+        vertical-align: middle;
+        line-height: 100px;
+        font-size: 50px;
+        text-align: center;
+        color: #666;
+        cursor: pointer;
+      }
+      .action-panel {
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="board"></div>
+    <script>
+      let pattern = [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+      ];
+
+      // 空|⭕|❌ 0 | 1 | 2
+      let color = 1;
+
+      function drawChessboard(pattern) {
+        let board = document.getElementById("board");
+
+        board.innerHTML = "";
+
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            let cell = document.createElement("div");
+            cell.classList.add("cell");
+            cell.innerText =
+              pattern[i][j] === 2 ? "❌" : pattern[i][j] === 1 ? "⭕" : "";
+            if (pattern[i][j] == 0) {
+              cell.addEventListener("click", () => userMove(i, j));
+            }
+            board.appendChild(cell);
+          }
+          board.appendChild(document.createElement("br"));
+        }
+      }
+
+      function whoWinner(color) {
+        return color === 2 ? "❌ is winner!" : "⭕ is winner!";
+      }
+
+      function userMove(i, j) {
+        pattern[i][j] = color;
+        if (checkWin(pattern, color)) {
+          alert(whoWinner(color));
+          return;
+        }
+        color = 3 - color;
+        drawChessboard(pattern);
+        computerMove(pattern);
+      }
+
+      function computerMove(pattern) {
+        let { point, result } = bestChoice(pattern, color);
+        console.log("bestChoice:", point, result);
+
+        // 如果点存在
+        if (point) {
+          pattern[point[0]][point[1]] = color;
+        }
+        if (checkWin(pattern, color)) {
+          alert(whoWinner(color));
+          return
+        }
+        color = 3 - color;
+        drawChessboard(pattern);
+      }
+
+      function clone(pattern) {
+        return JSON.parse(JSON.stringify(pattern));
+      }
+
+      function willWin(pattern, color) {
+        for (i = 0; i < 3; i++) {
+          for (j = 0; j < 3; j++) {
+            // 如果已经落子，则不再统计范围内
+            if (pattern[i][j] !== 0) {
+              continue;
+            }
+            let temp = clone(pattern);
+            temp[i][j] = color; // 模拟落子
+            // 当检测可以赢的时候，返回这个位置
+            if (checkWin(temp, color)) {
+              return [i, j];
+            }
+          }
+        }
+        return null;
+      }
+
+      // 寻找最优位置
+      function bestChoice(pattern, color) {
+        let p;
+        // 如果我方可以赢，则返回位置和结果 1
+        if ((p = willWin(pattern, color))) {
+          return {
+            point: p,
+            result: 1,
+          };
+        }
+
+        // -1 0 1
+        // 如果我方赢不了，则找到对方能赢的位置，然后我方去封堵
+        let result = -2;
+        let point = null;
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            if (pattern[i][j] !== 0) {
+              continue;
+            }
+            let temp = clone(pattern);
+            temp[i][j] = color;
+
+            let opp = bestChoice(temp, 3 - color);
+            // 找到最优解 -1 > -2
+            // 0 > -2
+            if (-opp.result > result) {
+              result = -opp.result;
+              point = [i, j];
+            }
+          }
+        }
+        return {
+          point: point,
+          result: point ? result : 0,
+        }
+      }
+
+      // 检测胜负
+      function checkWin(pattern, color) {
+        // 检测行
+        for (let i = 0; i < 3; i++) {
+          let win = true;
+          for (let j = 0; j < 3; j++) {
+            // 行棋子不同，必定不会获胜
+            if (pattern[i][j] !== color) {
+              win = false;
+            }
+          }
+          // 行棋子相同，则获胜
+          if (win) {
+            return true;
+          }
+        }
+
+        // 检测列
+        for (let i = 0; i < 3; i++) {
+          let win = true;
+          for (let j = 0; j < 3; j++) {
+            // 列棋子不同，必定不会获胜
+            if (pattern[j][i] !== color) {
+              win = false;
+            }
+          }
+          // 列棋子相同，额获胜
+          if (win) {
+            return true;
+          }
+        }
+
+        // 检测对角：左上 -> 右下
+        {
+          let win = true;
+          for (let i = 0; i < 3; i++) {
+            // 棋子不同，必定不会获胜
+            if (pattern[i][i] !== color) {
+              win = false;
+            }
+          }
+          // 棋子相同，则获胜
+          if (win) {
+            return true;
+          }
+        }
+
+        // 对角检测：右上 -> 左下
+        {
+          let win = true;
+          for (let i = 0; i < 3; i++) {
+            // 棋子不同，必定不会获胜
+            if (pattern[2 - i][i] !== color) {
+              win = false;
+            }
+          }
+          // 棋子相同，则获胜
+          if (win) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      drawChessboard(pattern);
+    </script>
+  </body>
+</html>
