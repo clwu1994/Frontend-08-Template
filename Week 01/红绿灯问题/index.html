@@ -4,54 +4,92 @@
 -->
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>红绿灯问题</title>
-  <style>
-    .light {
-      width: 50px;
-      height: 50px;
-      display: inline-block;
-      background-color: #cccccc;
-      margin: 0 8px;
-      border-radius: 50%;
-    }
-    .bg-green {
-      background-color: green;
-    }
-    .bg-yellow {
-      background-color: yellow;
-    }
-    .bg-red {
-      background-color: red;
-    }
-  </style>
-</head>
-<body>
-  <div class="light"></div>
-  <div class="light"></div>
-  <div class="light"></div>
-  <script>
-    function wait(delay) {
-      return new Promise((resolve, reject) => {
-        setTimeout(resolve, delay)
-      })
-    }
-    (async () => {
-      const nodes = document.querySelectorAll('.light');
-      while(true) {
-        nodes[2].classList.remove('bg-red')
-        nodes[0].classList.add('bg-green')
-        await wait(1000)
-        nodes[0].classList.remove('bg-green')
-        nodes[1].classList.add('bg-yellow')
-        await wait(2000)
-        nodes[1].classList.remove('bg-yellow')
-        nodes[2].classList.add('bg-red')
-        await wait(5000)
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>红绿灯问题</title>
+    <style>
+      .light {
+        width: 50px;
+        height: 50px;
+        display: inline-block;
+        background-color: #cccccc;
+        margin: 0 8px;
+        border-radius: 50%;
       }
-    })()
-  </script>
-</body>
+      .bg-green {
+        background-color: green;
+      }
+      .bg-yellow {
+        background-color: yellow;
+      }
+      .bg-red {
+        background-color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="light"></div>
+    <div class="light"></div>
+    <div class="light"></div>
+    <script>
+      function sleep(delay) {
+        return new Promise((resolve, reject) => {
+          setTimeout(resolve, delay);
+        });
+      }
+      function green(nodes) {
+        nodes[2].classList.remove("bg-red");
+        nodes[0].classList.add("bg-green");
+      }
+      function yellow(nodes) {
+        nodes[0].classList.remove("bg-green");
+        nodes[1].classList.add("bg-yellow");
+      }
+      function red(nodes) {
+        nodes[1].classList.remove("bg-yellow");
+        nodes[2].classList.add("bg-red");
+      }
+      // (async () => {
+      //   const nodes = document.querySelectorAll('.light');
+      //   while(true) {
+      //     green(nodes)
+      //     await sleep(1000)
+      //     yellow(nodes)
+      //     await sleep(2000)
+      //     red(nodes)
+      //     await sleep(5000)
+      //   }
+      // })()
+
+      function* go() {
+        const nodes = document.querySelectorAll('.light');
+        while (true) {
+          green(nodes);
+          yield sleep(1000);
+          yellow(nodes);
+          yield sleep(2000);
+          red(nodes);
+          yield sleep(5000);
+        }
+      }
+      function run(iterator) {
+        let { value, done } = iterator.next();
+        if (done) return;
+        if (value instanceof Promise) {
+          value.then(() => {
+            run(iterator);
+          });
+        }
+      }
+
+      function co(generator) {
+        return function () {
+          return run(generator());
+        };
+      }
+
+      go = co(go);
+    </script>
+  </body>
 </html>

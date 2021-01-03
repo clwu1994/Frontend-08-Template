@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>寻路算法</title>
+    <style>
+      .cell {
+        width: 6px;
+        height: 6px;
+        background-color: #999999;
+        border-bottom: 1px solid white;
+        border-right: 1px solid white;
+      }
+      #container {
+        width: 700px;
+        display: flex;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <button onClick="localStorage['map'] = JSON.stringify(map)">save</button>
+    <button onClick="clearHandler()">clear</button>
+    <script>
+      let emptyArray = Array(10000).fill(0);
+      let map = localStorage["map"]
+        ? JSON.parse(localStorage["map"])
+        : [...emptyArray];
+      let container = document.getElementById("container");
+      let mousedown = false;
+      let clear = false;
+
+      drawMapEditor();
+
+      class Sorted {
+        constructor(data, compare) {
+          this.data = data.slice();
+          this.compare = compare || ((a, b) => a - b);
+        }
+        taken() {
+          if (!this.data.length) return;
+          let min = this.data[0];
+          let minIndex = 0;
+
+          for (let i = 1; i < this.data.length; i++) {
+            if (this.compare(this.data[i], min) < 0) {
+              min = this.data[i];
+              minIndex = i;
+            }
+          }
+          this.data[minIndex] = this.data[this.data.length - 1];
+          this.data.pop();
+          return min;
+        }
+        give(v) {
+          this.data.push(v);
+        }
+        get length() {
+          return this.data.length;
+        }
+      }
+
+      function throttle(func, delay) {
+        let flag = false;
+        return function () {
+          if (flag) return;
+          flag = true;
+          return setTimeout(() => {
+            func.apply(this, arguments);
+            flag = false;
+          }, delay);
+        };
+      }
+
+      function sleep(delay) {
+        return new Promise((resolve, reject) => {
+          setTimeout(resolve, delay);
+        });
+      }
+
+      function clearHandler() {
+        map = [...emptyArray];
+        localStorage["map"] = JSON.stringify(map);
+        drawMapEditor();
+      }
+
+      function drawMapEditor() {
+        container.innerText = "";
+        for (let y = 0; y < 100; y++) {
+          for (let x = 0; x < 100; x++) {
+            let cell = document.createElement("div");
+            cell.classList.add("cell");
+            if (map[100 * y + x] === 1) {
+              cell.style.backgroundColor = "black";
+            }
+            cell.addEventListener("mousemove", (e) => {
+              console.log("mousemove => x, y", x, y)
+              if (mousedown) {
+                if (clear) {
+                  cell.style.backgroundColor = "";
+                  map[100 * y + x] = 0;
+                } else {
+                  cell.style.backgroundColor = "black";
+                  map[100 * y + x] = 1;
+                }
+              }
+            });
+            container.appendChild(cell);
+          }
+        }
+      }
+      document.addEventListener("mousedown", (e) => {
+        mousedown = true;
+        clear = e.which === 3;
+      });
+      document.addEventListener("mouseup", (e) => (mousedown = false));
+      document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      async function findPath(map, start, end) {
+        // 求距离
+        const distance = (point) => {
+          return (point[0] - end[0]) ** 2 + (point[1] - end[1]) ** 2;
+        };
+        const table = Object.create(map);
+        const queue = new Sorted([start], (a, b) => distance(a) - distance(b));
+
+        function isHitWall(x, y) {
+          return table[y * 100 + x] !== 1;
+        }
+
+        // 检查边界
+        function checkBoundary(x, y, pre) {
+          // 边界
+          if (x < 0 || x >= 100 || y < 0 || y >= 100) return false;
+          if (table[y * 100 + x]) return false;
+          // start -> end左上 ↖
+          if (pre[0] > x && pre[1] > y) {
+            return isHitWall(pre[0], pre[1] - 1) && isHitWall(pre[0] - 1, pre[1]);
+          }
+          // start -> end右上 ↗
+          if (pre[0] < x && pre[1] > y) {
+            return isHitWall(pre[0], pre[1] - 1) && isHitWall(pre[0] + 1, pre[1]);
+          }
+          // start -> end左下 ↙
+          if (pre[0] > x && pre[1] < y) {
+            return isHitWall(pre[0], pre[1] + 1) && isHitWall(pre[0] - 1, pre[1]);
+          }
+          // start -> end右下 ↘
+          if (pre[0] < x && pre[1] < y) {
+            return isHitWall(pre[0], pre[1] + 1) && isHitWall(pre[0] + 1, pre[1]);
+          }
+          return true;
+        }
+        window.checkBoundary = checkBoundary
+        async function insert(x, y, pre) {
+          if (!checkBoundary(x, y, pre)) return;
+          // await sleep(30)
+          container.children[y * 100 + x].style.backgroundColor = "lightgreen";
+
+          table[y * 100 + x] = pre;
+          queue.give([x, y]);
+        }
+
+        while (queue.length) {
+          let [x, y] = queue.taken();
+
+          if (x === end[0] && y === end[1]) {
+            let path = [];
+            while (x !== start[0] || y !== start[1]) {
+              path.push(map[y * 100 + x]);
+              // 取前节点坐标
+              [x, y] = table[y * 100 + x];
+              await sleep(30);
+              container.children[y * 100 + x].style.backgroundColor = "purple";
+            }
+            return path;
+          }
+          await insert(x - 1, y, [x, y]); // 左
+          await insert(x, y - 1, [x, y]); // 上
+          await insert(x + 1, y, [x, y]); // 右
+          await insert(x, y + 1, [x, y]); // 下
+
+          await insert(x - 1, y - 1, [x, y]); // 左上
+          await insert(x + 1, y - 1, [x, y]); // 右上
+          await insert(x - 1, y + 1, [x, y]); // 上下
+          await insert(x + 1, y + 1, [x, y]); // 右下
+        }
+        return null;
+      }
+    </script>
+  </body>
+</html>
