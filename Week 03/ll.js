@@ -23,14 +23,19 @@ function* tokenize(source) {
     token.value = result[0];
     yield token;
   }
+  yield {
+    type: "EOF"
+  }
 }
 
-for (let token of tokenize("1024 + 10 * 25")) {
-  console.log(token);
+let source = [];
+for (let token of tokenize("1024 + 10 * 25 - 3")) {
+  if (token.type !== "Whitespace" || token.type !== "LineTerminator")
+    source.push(token);
 }
 
 // 四则运算表达式
-function Expression(tokens) {
+function Expression() {
   if (source[0].type === "AdditiveExpression" && source[1] && source[1].type === "EOF") {
     let node = {
       type: "Expression",
@@ -133,3 +138,6 @@ function MultiplicativeExpression(source) {
   }
   return MultiplicativeExpression(source)
 }
+
+var ast = Expression();
+console.log('ast =>', ast);
